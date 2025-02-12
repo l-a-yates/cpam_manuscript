@@ -92,3 +92,36 @@ rcount <- function(mu,size,nMean,nRep){
   round(mean(rnbinom(n=min(round(max(mu/4,1)),nMean),mu=mu,size=size)))
 }
 
+
+# plot calibration curves for p-values
+plot_pval_calibration <- function(sims,npvals = 2e3, npsims = 2e3, ci = 0.95,
+                                  ribbon_col = blues9[6],
+                                  line_col = blues9[8],
+                                  tfun = function(x) -log10(x)){
+  unif_sim =
+    tibble(r = runif(npvals*npsims), s = rep(1:npsims, each = npvals)) %>%
+    group_by(s) %>%
+    mutate(r = tfun(sort(r)),
+           p.true = ((1:npvals)/npvals),
+           p.true.t = tfun(p.true)) %>%
+    group_by(p.true,p.true.t) %>%
+    summarise(lower = quantile(r,0.5-ci/2), upper = quantile(r,0.5+ci/2), se = sd(r))
+
+  unif_sim %>%
+    bind_cols(sims %>% map_dfc(~ quantile(.x$ecdf, probs = unif_sim$p.true) %>% tfun)) %>%
+    pivot_longer(all_of(names(sims)), names_to = "method", values_to = "q") %>%
+    ggplot(aes(x = p.true.t)) +
+    geom_ribbon(aes(ymin = lower, ymax = upper), fill = ribbon_col, alpha = 0.3) +
+    #geom_ribbon(aes(ymin = p.true.t - se, ymax = p.true.t + se), fill = "red", alpha = 0.3) +
+    geom_point(aes(y = q, col = method), size = 1.5, data = ~ .x %>% filter(p.true.t >= 2.4)) +
+    geom_line(aes(y = q, col = method), linewidth = 0.5, data = ~ .x %>% filter(p.true.t <= 2.4)) +
+    geom_line(aes(y = p.true.t), linetype = "dashed", col = line_col) +
+    labs(y = expression("observed -log"[10]*"(p-value)"),
+         x = expression("expected -log"[10]*"(p-value)"),
+         title = NULL,
+         subtitle = NULL,
+         col = "model") +
+    coord_equal()
+}
+
+

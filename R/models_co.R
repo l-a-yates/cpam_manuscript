@@ -118,7 +118,7 @@ pv_co_tradeseq <- function(count_matrix,nTP,nRep){
 }
 
 
-pv_co_trendcatcher <- function(count_matrix,nTP,nRep,nSim,nMean,seed,num_cores){
+pv_co_trendcatcher <- function(count_matrix,nTP,nRep,num_cores){
   message("fitting trendcatcher")
 
   # install_github("jaleesr/TrendCatcher", dependencies = TRUE, build_vignettes = FALSE)
