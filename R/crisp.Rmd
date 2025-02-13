@@ -1,0 +1,160 @@
+---
+title: "cpam: <u>c</u>hange<u>p</u>oint <u>a</u>dditive <u>m</u>odels"
+author: "Luke Yates"
+date: "`r Sys.Date()`"
+output:
+  html_document:
+    theme:
+      version: 5
+      bootswatch: cosmo
+    toc: true
+    toc_float: true
+    toc_depth: 3
+    highlight: tango
+    df_print: paged
+    self_contained: true
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(
+  echo = TRUE,
+  message = FALSE,
+  warning = FALSE,
+  fig.width = 8,
+  fig.height = 6,
+  out.width = "100%",
+  dpi = 300,
+  collapse = TRUE
+)
+
+options(
+  width = 120,
+  pillar.min_chars = 15,
+  pillar.min_title_chars = Inf,
+  tibble.print_max = 10
+)
+
+# Load required packages
+library(cpam)  
+library(dplyr)
+library(readr)
+library(tidyr)
+```
+
+# Case Study 1
+
+## About This Tutorial
+
+This tutorial demonstrates the R package cpam for the analysis of time series
+omics data. It reproduces the results for the first case study presented in the 
+manuscript [Shape-constrained, changepoint additive models for time series omics data with cpam]((https://doi.org/10.1101/2024.12.22.630003)).
+
+## Data
+
+The data are available in the package and can be loaded as follows:
+
+
+## Installation
+
+You can install the package from GitHub using:
+
+```{r installation, eval=FALSE}
+# install.packages("devtools")
+devtools::install_github("username/mypackage")
+```
+
+# Getting Started
+
+## Experimental design and transcript-to-gene mapping
+First we create the experimental design which must have at least the following columns: 
+time, sample, and path. The rep column is optional and is used here to generate the 
+sample names. We have already run kallisto to quantify transcript abundances (with 100 bootstraps),
+and here the path column contains the path to the abundance file for each sample.
+```{r experimental design}
+ed <- 
+  expand_grid(time = c(0,30,60,67.5,75,90,120), rep = 1:3) %>%
+  mutate(sample = paste0("pc_t",time,"_r",rep),
+         path = paste0("case_studies/crisp/data/kallisto/",sample,"/abundance.h5"))
+
+ed
+
+```
+The transcript-to-gene mapping for Arabidopsis thaliana can be downloaded from
+TAIR (...). We load this now
+
+```{r, eval=FALSE}
+t2g <- readr::read_csv("case_studies/crisp/data/t2g.csv")
+```
+
+## Fitting the models
+To fit the models, we first prepare the cpam object, then compute p-values, 
+estimate the changepoint, and select the shape of each transcript. The last step 
+takes the longest (here just under 13 minutes) but it is worth the wait to be able to
+visualise and cluster the transcripts by shape.
+
+```{r fitting the model, eval = F}
+  cpo <- prepare_cpam(exp_design = ed,
+                      t2g = t2g,
+                      import_type = "kallisto",
+                      num_cores = 4)
+  cpo <- compute_p_values(cpo) # 1:52
+  cpo <- estimate_changepoint(cpo) # 6:32 secs
+  cpo <- select_shape(cpo) # 12:54 secs
+    
+```
+
+### Feature 1
+
+```{r feature-1}
+# Demonstrate feature 1
+```
+
+### Feature 2
+
+```{r feature-2}
+# Demonstrate feature 2
+```
+
+# Advanced Usage
+
+## Complex Examples
+
+```{r complex-example}
+# More sophisticated example
+```
+
+## Common Use Cases
+
+### Use Case 1
+
+```{r use-case-1}
+# Example of first use case
+```
+
+### Use Case 2
+
+```{r use-case-2}
+# Example of second use case
+```
+
+# Tips and Tricks
+
+## Best Practices
+
+Guidelines for using your package effectively.
+
+## Troubleshooting
+
+Common issues and their solutions.
+
+# Additional Resources
+
+- Link to GitHub repository
+- Link to bug reports
+- Other relevant documentation
+
+# Session Info
+
+```{r session-info}
+sessionInfo()
+```
