@@ -1,5 +1,5 @@
 ---
-title: "Case Study 2"
+title: "Case Study 2 - Arabidopsis Time Series"
 author: "Luke Yates"
 date: "`r Sys.Date()`"
 output:
@@ -64,6 +64,13 @@ You can install the package from GitHub using:
 
 ```{r installation, eval=FALSE}
 devtools::install_github("l-a-yates/cpam")
+```
+
+# Getting started
+
+## Load packages 
+
+```{r loading, eval=FALSE}
 library(cpam)  
 library(dplyr)
 library(readr)
@@ -71,8 +78,6 @@ library(tidyr)
 library(stringr)
 
 ```
-
-# Getting Started
 
 ## Experimental design and transcript-to-gene mapping
 First we create the experimental design which must have at least the following columns: 
@@ -89,15 +94,19 @@ ed
 
 ```
 The transcript-to-gene mapping for Arabidopsis thaliana can be downloaded from
-TAIR (...). We load this now
+TAIR (...). We have downloaded it already and we load it now
 
 ```{r, eval=FALSE}
 t2g <- readr::read_csv("case_studies/crisp/data/t2g.csv")
 ```
+This file should have two columns, target_id and gene_id.
+```{r}
+head(t2g)
+```
 
 ## Fitting the models
 To fit the models, we first prepare the cpam object, then compute p-values, 
-estimate the changepoint, and select the shape of each transcript. The last step 
+estimate the changepoint, and select the shape for each transcript. The last step 
 takes the longest (here just under 13 minutes) but it is worth the wait to be able to
 visualise and cluster the transcripts by shape.
 
@@ -116,15 +125,15 @@ We can look at a summary of the fitted cpam object
 ```{r}
 cpo
 ```
-Although it cannot be launched here on the tutorial page, you can access the Shiny app
-to visualise the results by running the following code `visualise(cpo)`.
+Although it cannot be launched here on the online tutorial, you can launch the Shiny app
+on your own computer to visualise the results interactively using `visualise(cpo)`.
 
-## Tables of Results
+## Result tables
 The results of the analysis are summarised using the `results` function.
 ```{r feature-1}
 results(cpo)
 ```
-The generated results list can be filtered by specifying minimum counts, minimum
+The generated results can be filtered by specifying minimum counts, minimum
 log-fold changes, and maximum p-values. For example, to return only the transcripts
 with a log-fold change greater than 2, at least 50 counts, and a p-value less than 0.01, we can run
 ```{r filtered-results}
@@ -132,29 +141,29 @@ results(cpo, min_count = 10, min_lfc = 1, p_threshold = 0.01)
 ```
 
 
-## Plotting Genes and Transcripts
+## Plotting genes and transcripts
 
 A single gene can be plotted using the `plot_cpam` function. Here we plot the gene AT1G64140
 
 ```{r plot1}
 plot_cpam(cpo, gene_id = "AT1G64140")
 ```
-The substitle shows (0,tp) indicating a changepoint at time point 0 (or no changepoint) and an unconstained 'tp' (thinplate) shape. This selection of 'tp' suggest that the trend for this gene does not conform to one of the simpler shape types that cpam uses. To force the cpam to choose among the simpler forms, we set `shape_type = "shape2"` in the `plot_cpam` function. 
+The subtitle shows (0,tp) indicating a changepoint at time point 0 (i.e., no changepoint) and an unconstained 'tp' (thinplate) shape. This selection of 'tp' suggests that the trend for this gene does not conform to one of the simpler shape types that `cpam` uses. To force the `cpam` to choose among the simpler forms, we set `shape_type = "shape2"` in the `plot_cpam` function. For example:
 ```{r plot1b}
 plot_cpam(cpo, gene_id = "AT1G64140",shape_type = "shape2")
 ```
-Here a concave shape ('cv') is chosen, and we can see this deviates from the data more that the 
-'tp' shape.
+Here a concave shape ('cv') is chosen, and we can see this trend deviates from the 
+data substantially more that the unconstrained shape.
 
 Next we plot a gene with multiple transcripts, some of which have changepoints different
-from 0.
-
+from 0. 
 ```{r}
 plot_cpam(cpo, gene_id = "AT1G28610")
 ```
 The first transcript has a changepoint at 30 mins and the second at 0. Both have an 
-unconstrained shape. Changepoint, shape and other results from the fitted models can also be
-extracted manually from the cpam object. For example, to extract the shape of the transcripts
+unconstrained shape. The transcripts can plotted separately by setting `facet =T` in the `plot_cpam`
+function. There are may other settings that can be adjusted in the `plot_cpam` function, see the
+documentation for more details. Changepoints, shapes and other results from the fitted models can also be extracted manually from the `cpam` object. For example, to extract the shape of the transcripts
 ```{r}
 cpo$shapes %>% filter(str_starts(target_id,"AT1G28610"))
 ```
@@ -178,7 +187,15 @@ res <- results(cpo, min_count = 100, min_lfc = 1, p_threshold = 0.01)
 plot_cluster(cpo, res, changepoints = 30, shapes = "micv")
 ```
 Clustering can be further refined based on, for example, the rate at which the above transcripts
-attain their maximum values. We illustrate refinements such as this in another case study [here](url).
+attain their maximum values. We illustrate advanced refinements such as this in our other case study [here](url).
+
+## Advanced
+
+### OSE rule plots
+
+### Manual plotting for full customisation
+
+### isoform structure plots
 
 # Session Info
 
