@@ -1,5 +1,5 @@
 ---
-title: "cpam: <u>c</u>hange<u>p</u>oint <u>a</u>dditive <u>m</u>odels"
+title: "Case Study 2"
 author: "Luke Yates"
 date: "`r Sys.Date()`"
 output:
@@ -39,19 +39,23 @@ library(cpam)
 library(dplyr)
 library(readr)
 library(tidyr)
+library(stringr)
+
+#"cpam: <u>c</u>hange<u>p</u>oint <u>a</u>dditive <u>m</u>odels"
+
+cpo <- readRDS("../../cpam_paper/output/cpo_crisp_2024_09_13.rds")
+
 ```
 
-# Case Study 1
+## About
 
-## About This Tutorial
-
-This tutorial demonstrates the R package cpam for the analysis of time series
-omics data. It reproduces the results for the first case study presented in the 
+This tutorial demonstrates the R package `cpam` for the analysis of time series
+omics data. It reproduces the results for the second case study presented in the 
 manuscript [Shape-constrained, changepoint additive models for time series omics data with cpam]((https://doi.org/10.1101/2024.12.22.630003)).
 
 ## Data
 
-The data are available in the package and can be loaded as follows:
+The data are oublically available 
 
 
 ## Installation
@@ -59,8 +63,13 @@ The data are available in the package and can be loaded as follows:
 You can install the package from GitHub using:
 
 ```{r installation, eval=FALSE}
-# install.packages("devtools")
-devtools::install_github("username/mypackage")
+devtools::install_github("l-a-yates/cpam")
+library(cpam)  
+library(dplyr)
+library(readr)
+library(tidyr)
+library(stringr)
+
 ```
 
 # Getting Started
@@ -94,6 +103,7 @@ visualise and cluster the transcripts by shape.
 
 ```{r fitting the model, eval = F}
   cpo <- prepare_cpam(exp_design = ed,
+                      model_type = "case-only",
                       t2g = t2g,
                       import_type = "kallisto",
                       num_cores = 4)
@@ -102,56 +112,73 @@ visualise and cluster the transcripts by shape.
   cpo <- select_shape(cpo) # 12:54 secs
     
 ```
+We can look at a summary of the fitted cpam object 
+```{r}
+cpo
+```
+Although it cannot be launched here on the tutorial page, you can access the Shiny app
+to visualise the results by running the following code `visualise(cpo)`.
 
-### Feature 1
-
+## Tables of Results
+The results of the analysis are summarised using the `results` function.
 ```{r feature-1}
-# Demonstrate feature 1
+results(cpo)
+```
+The generated results list can be filtered by specifying minimum counts, minimum
+log-fold changes, and maximum p-values. For example, to return only the transcripts
+with a log-fold change greater than 2, at least 50 counts, and a p-value less than 0.01, we can run
+```{r filtered-results}
+results(cpo, min_count = 10, min_lfc = 1, p_threshold = 0.01)
 ```
 
-### Feature 2
 
-```{r feature-2}
-# Demonstrate feature 2
+## Plotting Genes and Transcripts
+
+A single gene can be plotted using the `plot_cpam` function. Here we plot the gene AT1G64140
+
+```{r plot1}
+plot_cpam(cpo, gene_id = "AT1G64140")
+```
+The substitle shows (0,tp) indicating a changepoint at time point 0 (or no changepoint) and an unconstained 'tp' (thinplate) shape. This selection of 'tp' suggest that the trend for this gene does not conform to one of the simpler shape types that cpam uses. To force the cpam to choose among the simpler forms, we set `shape_type = "shape2"` in the `plot_cpam` function. 
+```{r plot1b}
+plot_cpam(cpo, gene_id = "AT1G64140",shape_type = "shape2")
+```
+Here a concave shape ('cv') is chosen, and we can see this deviates from the data more that the 
+'tp' shape.
+
+Next we plot a gene with multiple transcripts, some of which have changepoints different
+from 0.
+
+```{r}
+plot_cpam(cpo, gene_id = "AT1G28610")
+```
+The first transcript has a changepoint at 30 mins and the second at 0. Both have an 
+unconstrained shape. Changepoint, shape and other results from the fitted models can also be
+extracted manually from the cpam object. For example, to extract the shape of the transcripts
+```{r}
+cpo$shapes %>% filter(str_starts(target_id,"AT1G28610"))
+```
+Lastly, we plot the two remaining genes shown in the manuscript, AT4G34590 and AT3G23280. 
+
+```{r}
+plot_cpam(cpo, gene_id = "AT4G34590")
 ```
 
-# Advanced Usage
-
-## Complex Examples
-
-```{r complex-example}
-# More sophisticated example
+```{r}
+plot_cpam(cpo, gene_id = "AT3G23280")
 ```
 
-## Common Use Cases
 
-### Use Case 1
+## Clusters
+The results function can be used to generate clusters according to selected filters. Here we
+generate clusters of transcripts with at least 100 counts, a log-fold change greater than 1, and a p-value less than 0.01. The `plot_cluster` function can then be used to visualise the clusters which we do here for targets with changepoints at 30 mins and the 'micv' (montonic increasing concave) shape.
 
-```{r use-case-1}
-# Example of first use case
+```{r clusters, cache=TRUE}
+res <- results(cpo, min_count = 100, min_lfc = 1, p_threshold = 0.01)
+plot_cluster(cpo, res, changepoints = 30, shapes = "micv")
 ```
-
-### Use Case 2
-
-```{r use-case-2}
-# Example of second use case
-```
-
-# Tips and Tricks
-
-## Best Practices
-
-Guidelines for using your package effectively.
-
-## Troubleshooting
-
-Common issues and their solutions.
-
-# Additional Resources
-
-- Link to GitHub repository
-- Link to bug reports
-- Other relevant documentation
+Clustering can be further refined based on, for example, the rate at which the above transcripts
+attain their maximum values. We illustrate refinements such as this in another case study [here](url).
 
 # Session Info
 
