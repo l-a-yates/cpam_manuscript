@@ -1,12 +1,13 @@
 ---
-title: "Case Study 2 - Arabidopsis Time Series"
+title: "Case Study 2"
 author: "Luke Yates"
 date: "`r Sys.Date()`"
+bibliography: references.bib
 output:
   html_document:
     theme:
       version: 5
-      bootswatch: cosmo
+      bootswatch: flatly
     toc: true
     toc_float: true
     toc_depth: 3
@@ -47,21 +48,27 @@ library(ggplot2)
 cpo <- readRDS("../../cpam_paper/output/cpo_crisp_2024_09_13.rds")
 cpo$data_long <- cpo$data_long %>% select(-old_path,-new_dir,-new_path)
 ```
+#  Arabidopsis thaliana time series
 
 ## About
 
 This tutorial demonstrates the R package `cpam` for the analysis of time series
-omics data. It reproduces the results for the second case study presented in the 
-manuscript [Shape-constrained, changepoint additive models for time series omics data with cpam]((https://doi.org/10.1101/2024.12.22.630003)).
+omics data. It serves an introduction to the package and reproduces the results 
+for the first case study presented in the accompanying 
+[manuscript](https://doi.org/10.1101/2024.12.22.630003) by @Yates2024. 
+A tutorial for first case study using human embryo time series data is available [here](https://raw.githack.com/l-a-yates/cpam_manuscript/main/R/torre.html).
+
 
 ## Data
 
-The data are oublically available 
+The data are publicly available from the Gene Expression Omnibus (GEO) under accession number xxx 
+The data consist of a time series of RNA-seq data for Arabidopsis thaliana under control and heat stress conditions. The experimental design consists of 21 samples taken at 7 time points (0, 30, 60, 67.5, 75, 90, and 120 minutes) with 3 biological replicates per time point.
 
+The transcript-to-gene mapping for Arabidopsis thaliana can be downloaded from The Arabidopsis Information Resource (TAIR) (https://www.arabidopsis.org/). 
 
 ## Installation
 
-You can install the package from GitHub using:
+You can install `cpam` from GitHub using:
 
 ```{r installation, eval=FALSE}
 devtools::install_github("l-a-yates/cpam")
@@ -82,9 +89,9 @@ library(ggplot2)
 ```
 
 ## Experimental design and transcript-to-gene mapping
-First we create the experimental design which must have at least the following columns: 
+First we create the experimental design tibble which must have at least the following columns: 
 time, sample, and path. The rep column is optional and is used here to generate the 
-sample names. We have already run kallisto to quantify transcript abundances (with 100 bootstraps),
+sample names. We have already run `kallisto` to quantify transcript abundances (with 100 bootstraps),
 and here the path column contains the path to the abundance file for each sample.
 ```{r experimental-design}
 ed <- 
@@ -95,11 +102,12 @@ ed <-
 ed
 
 ```
-The transcript-to-gene mapping for Arabidopsis thaliana can be downloaded from
-TAIR (...). We have downloaded it already and we load it now
+We have already downloaded (https://www.arabidopsis.org/) the 
+transcript-to-gene mapping for Arabidopsis thaliana 
+and we load it now.
 
 ```{r read-t2g, eval=FALSE}
-t2g <- readr::read_csv("case_studies/crisp/data/t2g.csv")
+t2g <- readr::read_csv("t2g.csv")
 ```
 This file should have two columns, target_id and gene_id.
 ```{r head-t2g}
@@ -107,8 +115,8 @@ head(t2g)
 ```
 
 ## Fitting the models
-To fit the models, we first prepare the cpam object, then compute p-values, 
-estimate the changepoint, and select the shape for each transcript. The last step 
+To fit the models, we first prepare the `cpam` object, then compute p-values, 
+estimate the changepoints, and select the shape for each transcript. The last step 
 takes the longest (here just under 13 minutes) but it is worth the wait to be able to
 visualise and cluster the transcripts by shape.
 
@@ -127,7 +135,7 @@ We can look at a summary of the fitted cpam object
 ```{r print-cpo}
 cpo
 ```
-Although it cannot be launched here on the online tutorial, you can launch the Shiny app
+Although it cannot be launched here within the online tutorial, you can launch the Shiny app
 on your own computer to visualise the results interactively using `visualise(cpo)`.
 
 ## Result tables
@@ -144,21 +152,18 @@ results(cpo, min_count = 10, min_lfc = 1, p_threshold = 0.01)
 
 
 ## Plotting genes and transcripts
-
 A single gene can be plotted using the `plot_cpam` function. Here we plot the gene AT1G64140
-
 ```{r plot1}
 plot_cpam(cpo, gene_id = "AT1G64140")
 ```
-The subtitle shows (0,tp) indicating a changepoint at time point 0 (i.e., no changepoint) and an unconstained 'tp' (thinplate) shape. This selection of 'tp' suggests that the trend for this gene does not conform to one of the simpler shape types that `cpam` uses. To force the `cpam` to choose among the simpler forms, we set `shape_type = "shape2"` in the `plot_cpam` function. For example:
+The subtitle shows `(0,tp)` indicating a changepoint at time point 0 (i.e., no changepoint) and an unconstrained 'tp' (thinplate) shape. This selection of 'tp' suggests that the trend for this gene does not conform to one of the simpler shape types that `cpam` uses. To force the `cpam` to choose among the simpler forms, we set `shape_type = "shape2"` in the `plot_cpam` function. For example:
 ```{r plot1b}
 plot_cpam(cpo, gene_id = "AT1G64140",shape_type = "shape2")
 ```
 Here a concave shape ('cv') is chosen, and we can see this trend deviates from the 
-data substantially more that the unconstrained shape.
+data substantially more that the unconstrained shape. See the manuscript for more details on the shape types available in `cpam`.
 
-Next we plot a gene with multiple transcripts, some of which have changepoints different
-from 0. 
+Next we plot a gene with multiple transcripts.
 ```{r plot-cpam-AT1G28610}
 plot_cpam(cpo, gene_id = "AT1G28610")
 ```
@@ -166,16 +171,16 @@ The first transcript has a changepoint at 30 mins and the second at 0. Both have
 unconstrained shape. The transcripts can plotted separately by setting `facet =T` in the `plot_cpam`
 function. There are may other settings that can be adjusted in the `plot_cpam` function, see the
 documentation for more details. Changepoints, shapes and other results from the fitted models can also be extracted manually from the `cpam` object. For example, to extract the shape of the transcripts
-```{r}
+```{r extract-shapes}
 cpo$shapes %>% filter(str_starts(target_id,"AT1G28610"))
 ```
-Lastly, we plot the two remaining genes shown in the manuscript, AT4G34590 and AT3G23280. 
+Lastly, we plot the two remaining genes featured in the manuscript, AT4G34590 and AT3G23280. 
 
-```{r}
+```{r plot-cpam-AT4G34590}
 plot_cpam(cpo, gene_id = "AT4G34590")
 ```
 
-```{r}
+```{r plot-cpam-AT3G23280}
 plot_cpam(cpo, gene_id = "AT3G23280")
 ```
 
@@ -189,7 +194,8 @@ res <- results(cpo, min_count = 100, min_lfc = 1, p_threshold = 0.01)
 plot_cluster(cpo, res, changepoints = 30, shapes = "micv")
 ```
 Clustering can be further refined based on, for example, the rate at which the above transcripts
-attain their maximum values. We illustrate advanced refinements such as this in our other case study [here](url).
+attain their maximum values. We illustrate advanced refinements such as this in our other case study
+[here](https://raw.githack.com/l-a-yates/cpam_manuscript/main/R/torre.html).
 
 ## Advanced plotting
 
@@ -356,10 +362,12 @@ fit <- plot_cpam(cpo, target_id = "AT3G23280.1",return_fits_only = T)
 cpam:::predict_cpgam(fit, logged = F, length.out = 200, ci_prob = "se")
 ```
 The count data can be extract the `cpam` object
-```{r}
+```{r extract-counts}
 cpo$data_long %>% filter(target_id == "AT3G23280.1")
 
 ```
+We demonstrate use of these data for manual plotting in the case study [here](https://raw.githack.com/l-a-yates/cpam_manuscript/main/R/torre.html).
+
 
 # Session Info
 
