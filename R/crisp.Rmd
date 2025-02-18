@@ -196,8 +196,10 @@ attain their maximum values. We illustrate advanced refinements such as this in 
 ### OSE rule plots
 When estimating the changepoint, `cpam` applies the one-standard error to 
 mitigate overfitting by taking into account model selection uncertainty. 
-To visualise the rule for a given target, we plot the pointwise score differences and their
-standard errors for all changepoints. First we extract the score table which contains the
+To visualise the rule, we plot the pointwise score differences and their
+standard errors for all changepoints. 
+
+First we extract the score table which contains the
 pointwise cross-validation scores for each model (changepoint).
 ```{r ose}
 score_table <- 
@@ -244,15 +246,15 @@ within one standard error of the minimum score difference.
 ```
 For the target AT3G23280.1, the OSE rule selects the changepoint at 67.5 mins, 
 although we can see that the subsequent point at 75 mins is a close contender 
-(compare the OSE plot with the plot of data and fitted model). For comparison,
-we plot the fitted model using the minimum scoring model instead of the OSE-selected model.
+(compare the OSE plot above with the earlier plot of the data and fitted model). For comparison,
+we plot below the fitted model using the minimum scoring model instead of the OSE-selected model.
 ```{r ose-plot2}
 plot_cpam(cpo, target_id = "AT3G23280.1", cp_type = "cp_min", bs = "tp") +
   labs(subtitle = "Minimum scoring model")
 ```
 In general, the minimum scoring model captures a more complex trend than the OSE-selected model,
 although the OSE-selected model is likely to generalise better to new data. See 
-the manuscript for a simulation study comparing two selection rules.
+the `cpam` [manuscript]((https://doi.org/10.1101/2024.12.22.630003)) for a simulation study comparing the two selection rules.
 
 ### Isoform structure plots
 
