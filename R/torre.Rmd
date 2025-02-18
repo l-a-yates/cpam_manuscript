@@ -1,0 +1,365 @@
+---
+title: "Case Study 1"
+author: "Luke Yates"
+date: "`r Sys.Date()`"
+bibliography: references.bib
+output:
+  html_document:
+    theme:
+      version: 5
+      bootswatch: flatly
+    toc: true
+    toc_float: true
+    toc_depth: 3
+    highlight: tango
+    df_print: paged
+    self_contained: true
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(
+  echo = TRUE,
+  message = FALSE,
+  warning = FALSE,
+  fig.width = 8,
+  fig.height = 6,
+  out.width = "100%",
+  dpi = 300,
+  collapse = TRUE
+)
+
+options(
+  width = 150,
+  pillar.min_chars = 15,
+  pillar.min_title_chars = Inf,
+  tibble.print_max = 10
+)
+
+# Load required packages
+library(cpam)  
+library(dplyr)
+library(readr)
+library(tidyr)
+library(stringr)
+library(ggplot2)
+library(purrr)
+#"cpam: <u>c</u>hange<u>p</u>oint <u>a</u>dditive <u>m</u>odels"
+
+cpo <- readRDS("../../cpam_paper/output/cpo_tx_torre_2024_12_11.rds")
+directory_path <- "../../cpam_paper/case_studies/torre/data/"
+```
+
+# Human Embryo Time Series
+
+## About
+
+This tutorial demonstrates the R package `cpam` for the analysis of time series
+omics data. It serves an introduction to the package and reproduces the results 
+for the first case study presented in the accompanying 
+[manuscript](https://doi.org/10.1101/2024.12.22.630003) by @Yates2024. 
+The second case study using Arabidopsis thaliana time series data is available [here](https://raw.githack.com/l-a-yates/cpam_manuscript/main/R/crisp.html).
+
+## Data
+
+The data are publicly available for download [here](https://torred23.dmz.hpc.mssm.edu/human-embryo-transcriptome/human_embryo_gene_isoform_expression.zip).
+The data consist of transcript counts for the human preimplantation embryo
+and are described in original data [manuscript](https://doi.org/10.1038/s41467-023-42558-y) by @Torre2023.
+
+## Installation
+
+You can install `cpam` from GitHub using:
+
+```{r installation, eval=FALSE}
+devtools::install_github("l-a-yates/cpam")
+```
+
+# Getting started
+
+## Load packages 
+
+```{r loading, eval=FALSE}
+library(cpam)  
+library(dplyr)
+library(readr)
+library(tidyr)
+library(stringr)
+library(ggplot2)
+library(purrr)
+
+directory_path <- "torre/data/"
+```
+
+## Load data and transcript-to-gene mapping
+
+We load the transcript counts and the transcript-to-gene mapping. The transcript counts
+are stored in a matrix where the rows are the transcript IDs and the columns are the samples.
+
+```{r load-data}
+sample_names <- readr::read_tsv(
+  paste0(directory_path, "human_embryo-transcript_counts.tsv"),
+  n_max = 1, 
+  col_names = F
+) %>%
+  t %>% as.vector()
+
+counts <- readr::read_tsv(
+  paste0(directory_path, "human_embryo-transcript_counts.tsv"),
+  skip = 1,
+  col_names = c("target_id", sample_names)
+)
+
+count_matrix <- counts %>% dplyr::select(-target_id) %>% as.matrix
+rownames(count_matrix) <- counts %>% pull(target_id)
+
+# convert to tibble (for display only)
+as.data.frame(count_matrix) %>% head %>% tibble::rownames_to_column("target_id")
+
+```
+
+The transcript-to-gene mapping is a data frame with two columns, target_id and gene_id.
+```{r t2g}
+transcriptome <- readr::read_tsv(paste0(directory_path,"Human_embryo_isoform_transcriptome_GRCh38-isoform_classification.tsv"))
+
+t2g <- transcriptome %>%
+  select(target_id = transcript_id, gene_id) %>%
+  filter(target_id %in% rownames(count_matrix))
+
+t2g
+```
+
+
+## Experimental design
+The experimental design is a tibble containing at least the following columns: 
+time and sample. The stage column is optional and used here to match sample
+names with the time points.
+```{r experimental-design}
+
+stage_to_time <- tibble(stage = c("2PN","2C","4C","8C","morula","blastocyst"),
+                        time = c(17/24,1.5,2,3,4.5,5.5) %>% round(2))
+
+ed <-
+  tibble(sample = colnames(count_matrix)) %>%
+  mutate(stage = str_match(sample,"_(.*?)_")[,2]) %>%
+  left_join(stage_to_time, by = "stage")
+
+ed
+```
+
+## Fitting the models
+To fit the models, we first prepare the `cpam` object, then compute p-values, 
+estimate the changepoint, and select the shape for each transcript. 
+For this analysis, the count data are supplied as a matrix (see this [case study](https://raw.githack.com/l-a-yates/cpam_manuscript/main/R/crisp.html) for importing data directly from common quantification software). We filter out transcripts
+that do not have more than 20 reads in at least 3/5 of the samples. 
+
+```{r fitting-the-model, eval = F}
+cpo <- prepare_cpam(
+  exp_design = ed,
+  count_matrix = count_matrix,
+  model_type = "case-only",
+  filter_fun_args = list(min_reads = 20, min_prop = 3/5),
+  t2g = t2g,
+  num_cores = 4
+)
+cpo <- compute_p_values(cpo) # 00:03:37 hms
+cpo <- estimate_changepoint(cpo) # 00:23:26 hms
+cpo <- select_shape(cpo) #  00:37:28 hms
+    
+```
+We can look at a summary of the fitted cpam object 
+```{r print-cpo, results='hold'}
+cpo
+```
+Although it cannot be launched here within the online tutorial, you can launch the Shiny app
+on your own computer to visualise the results interactively using `visualise(cpo)`.
+
+
+## Results
+The results of the analysis are summarised using the `results` function. Here
+we use the default settings for log-fold change and p-value thresholds. 
+
+```{r results}
+
+
+res <- results(
+  cpo,
+  min_lfc = 0,
+  p_threshold = 0.05,
+  add_counts = T,
+  add_lfc = F
+)
+
+res
+```
+Using the results table, we can plot the number of differentially expressed genes
+at each time point. 
+```{r degs-by-timepoint}
+res %>%
+  pull(cp) %>%
+  table %>%
+  {tibble(cp = names(.), n = as.numeric(.))} %>%
+  ggplot(aes(cp, n)) +
+  geom_point() +
+  geom_line(aes(group = 1)) +
+  theme_classic()
+```
+There is an obvious peak in differentially expressed genes at the 4C stage (t = 2.0 hours).
+
+## Plotting
+
+To plot the fitted models for a specific gene, we can use the `plot_cpam` function.
+```{r plot-gene-1a}
+g <- "ENSG00000141378"
+plot_cpam(
+  cpo,
+  gene_id = g,
+  facet = T, # plot each transcript on a separate facet
+  remove_null = T, # do show transcripts with null trajectories
+  common_y_scale = F # do not use a common y scale
+) 
+```
+The `facet` argument can be set to FALSE to plot all the fits on the same plot.
+
+```{r plot-gene-1b}
+g <- "ENSG00000141378"
+plot_cpam(cpo,
+          gene_id = g,
+          facet = F, # plot each transcript in a common plot
+          remove_null = T)
+```
+
+## Customising the plot
+If you require more customisation than the `plot_cpam` function allows, you can extract the
+model fits and plot their predictions manually. Here we make a logged version 
+of the above plot with some extra customisations such as changepoint ticks.
+
+```{r plot-gene-manual}
+
+# set gene
+g <- "ENSG00000141378"
+
+# set logged
+logged <- T
+fun <- identity
+if(logged) fun <- function(x) log(x + 0.5)
+scls <- if_else(logged, "free_x", "free")
+
+# get data
+obs <-
+  cpo$data_long %>% 
+  filter(gene_id == g) %>%
+  transmute(target_id, time, counts = fun(counts_raw/norm_factor + 0.5))
+cps <- cpo$changepoints %>% filter(target_id %in% unique(obs$target_id))
+
+# set colours
+tx_cols <- c(RColorBrewer::brewer.pal(7, name = "Dark2"))[-4]
+
+# plot
+plot_cpam(cpo, gene_id = g, return_fits_only = T) %>%
+  map_dfr( ~ cpam:::predict_cpgam(.x, logged = logged), .id = "target_id") %>%
+  ggplot(aes(time, counts)) +
+  scale_x_continuous(breaks = round(sort(cpo$times), 1),
+                     labels = c("0.7", "", "2.0", "3.0", "4.5", "5.5")) +
+                     #labels = c("1C","1C","4C","8C","M","B")) +
+                     geom_line(aes(col = target_id)) +
+                       geom_ribbon(aes(ymin = q_lo, ymax = q_hi, fill = target_id), alpha = 0.15) +
+                       facet_wrap( ~ target_id, scales = scls) +
+                       geom_point(data = obs, aes(time, counts, col = target_id)) +
+                       scale_fill_manual(values = tx_cols, aesthetics = c("fill", "color")) + 
+                       theme_classic() +
+                       theme(
+                         legend.position = "bottom",
+                         plot.subtitle = element_text(
+                           hjust = 0,
+                           face = "plain",
+                           margin = margin(b = 10)
+                         ),
+                         strip.background = element_blank(),
+                         strip.text = element_blank(),
+                         axis.line.x = element_line(color = "black"),
+                         axis.ticks.x = element_line(),
+                         panel.spacing.y = unit(1, "lines"),
+                         panel.spacing.x = unit(1, "lines"),
+                         axis.text.x = element_text(angle = 0, hjust = 0.5)
+                       ) +
+                       labs(
+                         y = "logged counts",
+                         x = "time (days)",
+                         col = NULL,
+                         fill = NULL,
+                         subtitle = paste0(g)
+                       ) +
+                       guides(color = guide_legend(byrow = TRUE), fill = guide_legend(byrow = TRUE)) +
+                       geom_point( # add ticks for changepoints
+                         data = cps,
+                         aes(x = cp_1se, y = -Inf),
+                         shape = 17,
+                         color = "grey20",
+                         size = 2.5
+                       )
+                     
+                     
+```
+
+## Clusters
+
+We can identify clusters of genes that have similar expression profiles. In the 
+first instance, we can use the results table with the function `plot_cluster`
+
+```{r plot-cluster-1, cache = TRUE}
+# filter to keep number of targets reasonable
+res <- results(cpo, min_lfc = 2, min_count = 1000)
+
+plot_cluster(cpo, res, changepoints = 2.0, shapes = "micv")
+
+```
+
+We can extend beyond the capabilities of `plot_cluster` to define our own clusters. 
+Here we define clusters based on the speed of the change in expression between the 3C and 4.5C stages.
+We start by filtering the results table to remove extreme values and select the 4C stage and the micv shape.
+We then calculate the speed of the change in expression between the 3C and 4.5C stages and filter the results to keep only the genes with a speed greater than 0.26. We then define 4 clusters based on the speed of the change in expression between the 3C and 4.5C stages.
+
+```{r res-cluster}
+
+res_cluster <-
+  res %>% 
+  filter(lfc.5.5<10) %>% # remove extreme values
+  filter(cp %in% 2, shape %in% "micv") %>% # select the 4C stage and the micv shape
+  mutate(speed = lfc.3/lfc.4.5) %>% # calculate the speed
+  filter(speed > 0.26) %>% # set a threshold
+  mutate(speed = cut(speed,breaks = c(0, 0.6, 0.75, 0.87,10), labels = paste0("cluster ",1:4)))
+
+res_cluster
+```
+This yields 1282 targets across four clusters. Next we generate the plot data which takes a minute to compute.
+
+```{r cluster-data, cache = TRUE}
+cluster_plot_data <-
+  res_cluster %>%
+  pull(target_id) %>%
+  set_names() %>%
+  map_dfr(~plot_cpam(cpo, target_id = .x, return_fits_only = T) %>%
+            cpam:::predict_lfc(),.id = "target_id")
+
+```
+Finally, we plot the clusters.
+```{r cluster-plot, cache = TRUE}
+
+cluster_plot_data %>%
+  left_join(res_cluster %>% select(target_id,speed), by = "target_id") %>%
+  ggplot(aes(x = time,y = lfc, group = target_id, col = speed)) +
+  geom_line(alpha = 0.2) +
+  scale_x_continuous(breaks = round(sort(cpo$times),1),
+                     labels = c("0.7","","2.0","3.0","4.5","5.5")) +
+  scale_color_manual(values = blues9[5:8]) +
+  facet_wrap(~ speed, nrow = 1) +
+  theme_classic() +
+  theme(legend.position = "none",
+        strip.background = element_blank(),
+        panel.spacing.x = unit(1.5, "lines"),
+        strip.text = element_text(size = 10, family = "sans")) +
+  labs(title = NULL, subtitle = NULL,
+       x = "time (days)", y = "log-fold change")
+
+```
+
+## References
