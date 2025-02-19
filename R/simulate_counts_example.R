@@ -80,6 +80,7 @@ saveRDS(count_matrix, "data/counts_example.rds")
 ed <- tibble(sample = colnames(count_matrix),
            time = rep(1:nTP, each = nRep))
 
+saveRDS(ed, "data/exp_design_example.rds")
 
 # fit cpam
 cpo <- cpam::prepare_cpam(exp_design = ed,
