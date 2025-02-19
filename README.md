@@ -13,7 +13,7 @@ manuscript can be found in the following tutorials
  - [Case Study 2](https://raw.githack.com/l-a-yates/cpam_manuscript/main/R/torre.html)
 
 There is also an introductory example using a small simulated data set to get started with the package
- - [Introductory](https://raw.githack.com/l-a-yates/cpam_manuscript/main/R/torre.html)
+ - [Introductory Example](https://raw.githack.com/l-a-yates/cpam_manuscript/main/R/example.html)
 
 ### Reproducing the simulations
 Code to reproduce the simulations in the manuscript can be found in the `R` directory.
