@@ -74,7 +74,7 @@ sample((1-prop_null)*nSim,1) %>%
 count_matrix <- count_matrix[order(rownames(count_matrix)),]
 
 # save simulation data
-write.csv(count_matrix, paste0("data/counts_example.csv"))
+saveRDS(count_matrix, "data/counts_example.rds")
 
 
 ed <- tibble(sample = colnames(count_matrix),
@@ -86,11 +86,12 @@ cpo <- cpam::prepare_cpam(exp_design = ed,
                     count_matrix = count_matrix,
                     gene_level = T,
                     num_cores = 4)
-cpo <- cpam::compute_p_values(cpo) # 2 seconds
-cpo <- cpam::estimate_changepoint(cpo) # 2 seconds
-cpo <- cpam::select_shape(cpo) # 2 seconds
+cpo <- cpam::compute_p_values(cpo) # 5 seconds
+cpo <- cpam::estimate_changepoint(cpo) # 5 seconds
+cpo <- cpam::select_shape(cpo) # 5 seconds
 saveRDS(cpo,"data/cpo_example.rds")
-visualize(cpo)
+
+#visualize(cpo)
 
 
 
