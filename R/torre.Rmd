@@ -1,5 +1,5 @@
 ---
-title: "Case Study 1"
+title: "Human Embryo Case Study"
 author: "Luke Yates"
 date: "`r Sys.Date()`"
 bibliography: references.bib
@@ -49,8 +49,6 @@ cpo <- readRDS("../../cpam_paper/output/cpo_tx_torre_2024_12_11.rds")
 directory_path <- "../../cpam_paper/case_studies/torre/data/"
 ```
 
-# Human Embryo Time Series
-
 ## About
 
 This tutorial demonstrates the R package `cpam` for the analysis of time series
@@ -59,11 +57,13 @@ for the first case study presented in the accompanying
 [manuscript](https://doi.org/10.1101/2024.12.22.630003) by @Yates2024. 
 The second case study using Arabidopsis thaliana time series data is available [here](https://raw.githack.com/l-a-yates/cpam_manuscript/main/R/crisp.html).
 
+
 ## Data
 
-The data are publicly available for download [here](https://torred23.dmz.hpc.mssm.edu/human-embryo-transcriptome/human_embryo_gene_isoform_expression.zip).
+This tutorial uses time-series RNA-seq data tracking human embryo development across multiple stages. The data are publicly available for download [here](https://denis-torre.github.io/embryo-transcriptome/). 
 The data consist of transcript counts for the human preimplantation embryo
 and are described in original data [manuscript](https://doi.org/10.1038/s41467-023-42558-y) by @Torre2023.
+The experiment captures transcriptional changes across six early developmental stages: zygote, 2-cell, 4-cell, 8-cell, morula, and blastocyst. These time points span a major developmental transition - embryonic genome activation (EGA) that occurs after the 4-cell stage – and captures major transcriptional transitions in development.  
 
 ## Installation
 
@@ -165,11 +165,16 @@ cpo <- estimate_changepoint(cpo) # 00:23:26 hms
 cpo <- select_shape(cpo) #  00:37:28 hms
     
 ```
+For larger transcriptomes, such as this human transciptome with many additional transcripts beyond the standard reference, the model fitting can take a long time. Here, using 4 cores, we were able to estimate $p$-values
+in 3 minutes, changepoints in 23 minutes, and shape selections in 37 minutes. The latter
+stages, although slower to compute, are worth the wait for the inferences they provide.
+
+
 We can look at a summary of the fitted cpam object 
 ```{r print-cpo, results='hold'}
 cpo
 ```
-Although it cannot be launched here within the online tutorial, you can launch the Shiny app
+If you run the code on your own computer, you can launch the Shiny app
 on your own computer to visualise the results interactively using `visualise(cpo)`.
 
 
@@ -202,7 +207,8 @@ res %>%
   geom_line(aes(group = 1)) +
   theme_classic()
 ```
-There is an obvious peak in differentially expressed genes at the 4C stage (t = 2.0 hours).
+There is an obvious peak in differentially expressed genes at the 4C stage (t = 2.0 hours), corresponding to the
+embryonic genome activation (EGA).
 
 ## Plotting
 
@@ -302,7 +308,7 @@ plot_cpam(cpo, gene_id = g, return_fits_only = T) %>%
 
 ## Clusters
 
-We can identify clusters of genes that have similar expression profiles. In the 
+We can identify clusters of targets that have similar expression profiles. In the 
 first instance, we can use the results table with the function `plot_cluster`
 
 ```{r plot-cluster-1, cache = TRUE}
@@ -313,20 +319,22 @@ plot_cluster(cpo, res, changepoints = 2.0, shapes = "micv")
 
 ```
 
-We can extend beyond the capabilities of `plot_cluster` to define our own clusters. 
-Here we define clusters based on the speed of the change in expression between the 3C and 4.5C stages.
-We start by filtering the results table to remove extreme values and select the 4C stage and the micv shape.
-We then calculate the speed of the change in expression between the 3C and 4.5C stages and filter the results to keep only the genes with a speed greater than 0.26. We then define 4 clusters based on the speed of the change in expression between the 3C and 4.5C stages.
+There are more than 4000 targets in this subset, and such a large number can obscure subsets of
+targets with different expression profiles, for example with differing rates of increase.
 
+When the default clustering categories yield a large numbers of targets, it is
+useful to be able define custom clusters. Here we define clusters based on the rate of the change in expression between the 3C and 4.5C stages.
+
+To contain the scale of the plot, we filter the results table to remove a handful of
+large log-fold changes above 10. We define the rate to be ratio of the log-fold changes between the 3C and 4.5C stages and choose three thresholds to define the clusters.
 ```{r res-cluster}
 
 res_cluster <-
   res %>% 
   filter(lfc.5.5<10) %>% # remove extreme values
   filter(cp %in% 2, shape %in% "micv") %>% # select the 4C stage and the micv shape
-  mutate(speed = lfc.3/lfc.4.5) %>% # calculate the speed
-  filter(speed > 0.26) %>% # set a threshold
-  mutate(speed = cut(speed,breaks = c(0, 0.6, 0.75, 0.87,10), labels = paste0("cluster ",1:4)))
+  mutate(rate = lfc.3/lfc.4.5) %>% # calculate the speed
+  mutate(cluster = cut(rate,breaks = c(0, 0.6, 0.75, 0.87,10), labels = paste0("cluster ",1:4)))
 
 res_cluster
 ```
@@ -359,6 +367,24 @@ cluster_plot_data %>%
         strip.text = element_text(size = 10, family = "sans")) +
   labs(title = NULL, subtitle = NULL,
        x = "time (days)", y = "log-fold change")
+
+```
+
+For further, such as GO term enrichment, we can easily extract tables of clustered
+targets. To look at the numbers of targets in each cluster.
+
+```{r}
+res_cluster %>% pull(cluster) %>% table
+```
+To match targets with their rate and cluster.
+```{r}
+res_cluster %>% select(target_id,rate,cluster)
+```
+
+To look at the targets in cluster 1.
+```{r }
+res_cluster %>% select(target_id,rate) %>% 
+filter(rate == "cluster 1") %>% pull(target_id) %>% head
 
 ```
 

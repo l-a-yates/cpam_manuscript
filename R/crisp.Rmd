@@ -1,5 +1,5 @@
 ---
-title: "Case Study 2"
+title: "Arabidopsis Case Study"
 author: "Luke Yates"
 date: "`r Sys.Date()`"
 bibliography: references.bib
@@ -48,21 +48,19 @@ library(ggplot2)
 cpo <- readRDS("../../cpam_paper/output/cpo_crisp_2024_09_13.rds")
 cpo$data_long <- cpo$data_long %>% select(-old_path,-new_dir,-new_path)
 ```
-#  Arabidopsis thaliana time series
 
 ## About
 
 This tutorial demonstrates the R package `cpam` for the analysis of time series
 omics data. It serves an introduction to the package and reproduces the results 
-for the first case study presented in the accompanying 
+for the second case study presented in the accompanying 
 [manuscript](https://doi.org/10.1101/2024.12.22.630003) by @Yates2024. 
 A tutorial for first case study using human embryo time series data is available [here](https://raw.githack.com/l-a-yates/cpam_manuscript/main/R/torre.html).
 
 
 ## Data
 
-The data are publicly available from the Gene Expression Omnibus (GEO) under accession number xxx 
-The data consist of a time series of RNA-seq data for Arabidopsis thaliana under control and heat stress conditions. The experimental design consists of 21 samples taken at 7 time points (0, 30, 60, 67.5, 75, 90, and 120 minutes) with 3 biological replicates per time point.
+This tutorial uses publicly available time-series RNA-seq data from an Arabidopsis light stress experiment due to @Crisp2017 (NCBI Short Read Archive, BioProject Accession number: PRJNA391262). This experiment investigated transcriptional responses when plants were transferred from low light to excess light for 60 minutes, followed by recovery in low light for 60 minutes. In this example, we use a subset of 21 samples taken at 7 time points (0, 30, 60, 67.5, 70, 90, and 120 minutes) with 3 biological replicates per time point, that capture dynamic transcriptional responses to a rapid environmental change.  
 
 The transcript-to-gene mapping for Arabidopsis thaliana can be downloaded from The Arabidopsis Information Resource (TAIR) (https://www.arabidopsis.org/). 
 
@@ -90,9 +88,10 @@ library(ggplot2)
 
 ## Experimental design and transcript-to-gene mapping
 First we create the experimental design tibble which must have at least the following columns: 
-time, sample, and path. The rep column is optional and is used here to generate the 
-sample names. We have already run `kallisto` to quantify transcript abundances (with 100 bootstraps),
-and here the path column contains the path to the abundance file for each sample.
+time, sample, and path. The `rep` column is optional and is used here to generate the 
+sample names. We used the software [kallisto](https://doi.org/10.1038/nbt.3519) to 
+quantify counts from the RNA-seq data (with 100 bootstrap replicates). The 
+`path` column contains the path to the kallisto abundance file for each sample.
 ```{r experimental-design}
 ed <- 
   expand_grid(time = c(0,30,60,67.5,75,90,120), rep = 1:3) %>%
@@ -135,7 +134,7 @@ We can look at a summary of the fitted cpam object
 ```{r print-cpo}
 cpo
 ```
-Although it cannot be launched here within the online tutorial, you can launch the Shiny app
+If you run the code on your own computer, you can launch the Shiny app
 on your own computer to visualise the results interactively using `visualise(cpo)`.
 
 ## Result tables
@@ -144,8 +143,8 @@ The results of the analysis are summarised using the `results` function.
 results(cpo)
 ```
 The generated results can be filtered by specifying minimum counts, minimum
-log-fold changes, and maximum p-values. For example, to return only the transcripts
-with a log-fold change greater than 2, at least 50 counts, and a p-value less than 0.01, we can run
+log-fold changes, and maximum $p$-values. For example, to return only the transcripts
+with a log-fold change greater than 2, at least 10 counts, and a $p$-value less than 0.01:
 ```{r filtered-results}
 results(cpo, min_count = 10, min_lfc = 1, p_threshold = 0.01)
 ```
@@ -156,11 +155,11 @@ A single gene can be plotted using the `plot_cpam` function. Here we plot the ge
 ```{r plot1}
 plot_cpam(cpo, gene_id = "AT1G64140")
 ```
-The subtitle shows `(0,tp)` indicating a changepoint at time point 0 (i.e., no changepoint) and an unconstrained 'tp' (thinplate) shape. This selection of 'tp' suggests that the trend for this gene does not conform to one of the simpler shape types that `cpam` uses. To force the `cpam` to choose among the simpler forms, we set `shape_type = "shape2"` in the `plot_cpam` function. For example:
+The subtitle shows `(0,tp)` indicating a changepoint at time point 0 (i.e., no changepoint) and an unconstrained `'tp'` (thinplate) shape. This selection of 'tp' suggests that the trend for this gene does not conform to one of the simpler shape types that `cpam` uses. To force the `cpam` to choose among the simpler forms, we set `shape_type = "shape2"` in the `plot_cpam` function. For example:
 ```{r plot1b}
 plot_cpam(cpo, gene_id = "AT1G64140",shape_type = "shape2")
 ```
-Here a concave shape ('cv') is chosen, and we can see this trend deviates from the 
+Here a concave shape (`'cv'`) is chosen, and we can see this trend deviates from the 
 data substantially more that the unconstrained shape. See the manuscript for more details on the shape types available in `cpam`.
 
 Next we plot a gene with multiple transcripts.
@@ -168,7 +167,7 @@ Next we plot a gene with multiple transcripts.
 plot_cpam(cpo, gene_id = "AT1G28610")
 ```
 The first transcript has a changepoint at 30 mins and the second at 0. Both have an 
-unconstrained shape. The transcripts can plotted separately by setting `facet =T` in the `plot_cpam`
+unconstrained shape. The transcripts can plotted separately by setting `facet = T` in the `plot_cpam`
 function. There are may other settings that can be adjusted in the `plot_cpam` function, see the
 documentation for more details. Changepoints, shapes and other results from the fitted models can also be extracted manually from the `cpam` object. For example, to extract the shape of the transcripts
 ```{r extract-shapes}
@@ -199,68 +198,6 @@ attain their maximum values. We illustrate advanced refinements such as this in 
 
 ## Advanced plotting
 
-### OSE rule plots
-When estimating the changepoint, `cpam` applies the one-standard error to 
-mitigate overfitting by taking into account model selection uncertainty. 
-To visualise the rule, we plot the pointwise score differences and their
-standard errors for all changepoints. 
-
-First we extract the score table which contains the
-pointwise cross-validation scores for each model (changepoint).
-```{r ose}
-score_table <- 
-  cpo$changepoints %>% 
-  filter(target_id == "AT3G23280.1") %>% 
-  pull(score_table) %>% 
-  .[[1]]
-
-score_table
-```
-Next, we determine the minimum scoring model, and compute the pointwise 
-score differences.
-```{r ose-diff}
-m.min <- score_table %>% purrr::map_dbl(mean) %>% which.min() %>% names; m.min
-score_table_diff <- score_table - score_table[[m.min]]
-score_table_diff
-```
-Finally, we compute and plot the mean score differences and their standard errors.
-The OSE-selected changepoint is latest changepoint whose score is 
-within one standard error of the minimum score difference.
-
-```{r ose-plot}
-  tibble(cp = names(score_table_diff) %>% {factor(.,.)},
-       score_diff = score_table_diff %>% purrr::map_dbl(mean),
-       se_diff = score_table_diff %>% purrr::map_dbl(~sd(.x)/sqrt(nrow(score_table_diff)))) %>%
-  ggplot(aes(x = cp)) +
-  geom_linerange(aes(ymin = score_diff - se_diff,
-                     ymax = score_diff + se_diff)) +
-  geom_hline(yintercept = 0, lty = "dashed") +
-  geom_point(aes(y = score_diff, colour = "min"), shape = 1, size = 5,
-             data = ~ filter(.x, score_diff == min(score_diff))) +
-  geom_point(aes(y = score_diff, colour = "1se"), shape = 1, size = 5,
-             data = ~ filter(.x, se_diff >= score_diff) %>% 
-               filter(as.numeric(cp) == max(as.numeric(cp)))) +
-  geom_point(aes(y = score_diff), size = 2) +
-  scale_colour_manual(values = c(`1se` = "#CB181D", min = "#08519C"),
-                      breaks = c("min","1se")) +
-  labs(col = NULL, y = expression(Delta*"P"), x = "Changepoint",
-       subtitle = "One-standard-error rule") +
-  theme_classic() +
-  theme(legend.position = "bottom") 
-
-
-```
-For the target AT3G23280.1, the OSE rule selects the changepoint at 67.5 mins, 
-although we can see that the subsequent point at 75 mins is a close contender 
-(compare the OSE plot above with the earlier plot of the data and fitted model). For comparison,
-we plot below the fitted model using the minimum scoring model instead of the OSE-selected model.
-```{r ose-plot2}
-plot_cpam(cpo, target_id = "AT3G23280.1", cp_type = "cp_min", bs = "tp") +
-  labs(subtitle = "Minimum scoring model")
-```
-In general, the minimum scoring model captures a more complex trend than the OSE-selected model,
-although the OSE-selected model is likely to generalise better to new data. See 
-the `cpam` [manuscript]((https://doi.org/10.1101/2024.12.22.630003)) for a simulation study comparing the two selection rules.
 
 ### Isoform structure plots
 
@@ -350,6 +287,70 @@ p_exon <-
 ```
 
 
+### OSE rule plots
+When estimating the changepoint, `cpam` applies the one-standard error to 
+mitigate overfitting by taking into account model selection uncertainty. 
+To visualise the rule, we plot the pointwise score differences and their
+standard errors for all changepoints. 
+
+First we extract the score table which contains the
+pointwise cross-validation scores for each model (changepoint).
+```{r ose}
+score_table <- 
+  cpo$changepoints %>% 
+  filter(target_id == "AT3G23280.1") %>% 
+  pull(score_table) %>% 
+  .[[1]]
+
+score_table
+```
+Next, we determine the minimum scoring model, and compute the pointwise 
+score differences.
+```{r ose-diff}
+m.min <- score_table %>% purrr::map_dbl(mean) %>% which.min() %>% names; m.min
+score_table_diff <- score_table - score_table[[m.min]]
+score_table_diff
+```
+Finally, we compute and plot the mean score differences and their standard errors.
+The OSE-selected changepoint is latest changepoint whose score is 
+within one standard error of the minimum score difference.
+
+```{r ose-plot}
+  tibble(cp = names(score_table_diff) %>% {factor(.,.)},
+       score_diff = score_table_diff %>% purrr::map_dbl(mean),
+       se_diff = score_table_diff %>% purrr::map_dbl(~sd(.x)/sqrt(nrow(score_table_diff)))) %>%
+  ggplot(aes(x = cp)) +
+  geom_linerange(aes(ymin = score_diff - se_diff,
+                     ymax = score_diff + se_diff)) +
+  geom_hline(yintercept = 0, lty = "dashed") +
+  geom_point(aes(y = score_diff, colour = "min"), shape = 1, size = 5,
+             data = ~ filter(.x, score_diff == min(score_diff))) +
+  geom_point(aes(y = score_diff, colour = "1se"), shape = 1, size = 5,
+             data = ~ filter(.x, se_diff >= score_diff) %>% 
+               filter(as.numeric(cp) == max(as.numeric(cp)))) +
+  geom_point(aes(y = score_diff), size = 2) +
+  scale_colour_manual(values = c(`1se` = "#CB181D", min = "#08519C"),
+                      breaks = c("min","1se")) +
+  labs(col = NULL, y = expression(Delta*"P"), x = "Changepoint",
+       subtitle = "One-standard-error rule") +
+  theme_classic() +
+  theme(legend.position = "bottom") 
+
+
+```
+For the target AT3G23280.1, the OSE rule selects the changepoint at 67.5 mins, 
+although we can see that the subsequent point at 75 mins is a close contender 
+(compare the OSE plot above with the earlier plot of the data and fitted model). For comparison,
+we plot below the fitted model using the minimum scoring model instead of the OSE-selected model.
+```{r ose-plot2}
+plot_cpam(cpo, target_id = "AT3G23280.1", cp_type = "cp_min", bs = "tp") +
+  labs(subtitle = "Minimum scoring model")
+```
+In general, the minimum scoring model captures a more complex trend than the OSE-selected model,
+although the OSE-selected model is likely to generalise better to new data. See 
+the `cpam` [manuscript]((https://doi.org/10.1101/2024.12.22.630003)) for a simulation study comparing the two selection rules.
+
+
 ### Extract plot data for full customisation
 If you require more customisation than the `plot_cpam` function allows, you can extract the
 model fits and plot their predictions manually. Here we show how to extract the model fits, 
@@ -366,7 +367,7 @@ The count data can be extract the `cpam` object
 cpo$data_long %>% filter(target_id == "AT3G23280.1")
 
 ```
-We demonstrate use of these data for manual plotting in the case study [here](https://raw.githack.com/l-a-yates/cpam_manuscript/main/R/torre.html).
+We demonstrate use of these data for manual plotting in the [human embryo case study](https://raw.githack.com/l-a-yates/cpam_manuscript/main/R/torre.html).
 
 
 # Session Info
