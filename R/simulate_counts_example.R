@@ -90,8 +90,9 @@ cpo <- cpam::prepare_cpam(exp_design = ed,
 cpo <- cpam::compute_p_values(cpo) # 5 seconds
 cpo <- cpam::estimate_changepoint(cpo) # 5 seconds
 cpo <- cpam::select_shape(cpo) # 5 seconds
-saveRDS(cpo,"data/cpo_example.rds")
+cpo$num_cores <- 1 # for platform independence
 
+saveRDS(cpo,"data/cpo_example.rds")
 #visualize(cpo)
 
 

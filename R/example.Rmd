@@ -1,6 +1,5 @@
 ---
 title: "`cpam`: an introductory example"
-author: "Luke Yates"
 date: "`r Sys.Date()`"
 bibliography: references.bib
 output:
@@ -49,7 +48,7 @@ library(ggplot2)
 
 ## About
 
-This tutorial demonstrates the R package `cpam` for the analysis of time series
+This tutorial demonstrates the R package [`cpam`](https://l-a-yates.github.io/cpam/) for the analysis of time series
 omics data. It serves as a basic introduction to the package. There are also 
 two detailed case studies using real world data:
 
@@ -58,7 +57,7 @@ two detailed case studies using real world data:
 
 
 These case studies and several simulation studies are presented in the accompanying 
-[manuscript](https://doi.org/10.1101/2024.12.22.630003) by @Yates2024. 
+[manuscript](https://doi.org/10.1101/2024.12.22.630003) by @Yates2024. See also, the package [website](https://l-a-yates.github.io/cpam/).
 
 ## Data
 
@@ -69,7 +68,7 @@ The code to reproduce the data is available in this repository
 
 ## Installation
 
-You can install `cpam` from GitHub using:
+You can install [`cpam`](https://l-a-yates.github.io/cpam/) from GitHub using:
 
 ```{r installation, eval=FALSE}
 devtools::install_github("l-a-yates/cpam")

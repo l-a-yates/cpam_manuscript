@@ -1,6 +1,5 @@
 ---
 title: "Arabidopsis Case Study"
-author: "Luke Yates"
 date: "`r Sys.Date()`"
 bibliography: references.bib
 output:
@@ -51,7 +50,7 @@ cpo$data_long <- cpo$data_long %>% select(-old_path,-new_dir,-new_path)
 
 ## About
 
-This tutorial demonstrates the R package `cpam` for the analysis of time series
+This tutorial demonstrates the R package [`cpam`](https://l-a-yates.github.io/cpam/) for the analysis of time series
 omics data. It serves an introduction to the package and reproduces the results 
 for the second case study presented in the accompanying 
 [manuscript](https://doi.org/10.1101/2024.12.22.630003) by @Yates2024. 
@@ -66,7 +65,7 @@ The transcript-to-gene mapping for Arabidopsis thaliana can be downloaded from T
 
 ## Installation
 
-You can install `cpam` from GitHub using:
+You can install [`cpam`](https://l-a-yates.github.io/cpam/) from GitHub using:
 
 ```{r installation, eval=FALSE}
 devtools::install_github("l-a-yates/cpam")

@@ -1,6 +1,5 @@
 ---
 title: "Human Embryo Case Study"
-author: "Luke Yates"
 date: "`r Sys.Date()`"
 bibliography: references.bib
 output:
@@ -51,11 +50,11 @@ directory_path <- "../../cpam_paper/case_studies/torre/data/"
 
 ## About
 
-This tutorial demonstrates the R package `cpam` for the analysis of time series
+This tutorial demonstrates the R package [`cpam`](https://l-a-yates.github.io/cpam/) for the analysis of time series
 omics data. It serves an introduction to the package and reproduces the results 
 for the first case study presented in the accompanying 
 [manuscript](https://doi.org/10.1101/2024.12.22.630003) by @Yates2024. 
-The second case study using Arabidopsis thaliana time series data is available [here](https://raw.githack.com/l-a-yates/cpam_manuscript/main/R/crisp.html).
+The second case study using *Arabidopsis thaliana* time series data is available [here](https://raw.githack.com/l-a-yates/cpam_manuscript/main/R/crisp.html).
 
 
 ## Data
@@ -67,7 +66,7 @@ The experiment captures transcriptional changes across six early developmental s
 
 ## Installation
 
-You can install `cpam` from GitHub using:
+You can install [`cpam`](https://l-a-yates.github.io/cpam/) from GitHub using:
 
 ```{r installation, eval=FALSE}
 devtools::install_github("l-a-yates/cpam")
@@ -131,11 +130,11 @@ t2g
 ## Experimental design
 The experimental design is a tibble containing at least the following columns: 
 time and sample. The stage column is optional and used here to match sample
-names with the time points.
+names with the time points (here expressed in hours).
 ```{r experimental-design}
 
 stage_to_time <- tibble(stage = c("2PN","2C","4C","8C","morula","blastocyst"),
-                        time = c(17/24,1.5,2,3,4.5,5.5) %>% round(2))
+                        time = c(0.71,1.5,2,3,4.5,5.5))
 
 ed <-
   tibble(sample = colnames(count_matrix)) %>%
@@ -148,8 +147,8 @@ ed
 ## Fitting the models
 To fit the models, we first prepare the `cpam` object, then compute p-values, 
 estimate the changepoint, and select the shape for each transcript. 
-For this analysis, the count data are supplied as a matrix (see this [case study](https://raw.githack.com/l-a-yates/cpam_manuscript/main/R/crisp.html) for importing data directly from common quantification software). We filter out transcripts
-that do not have more than 20 reads in at least 3/5 of the samples. 
+For this analysis, the count data are supplied as a matrix (see this [case study](https://raw.githack.com/l-a-yates/cpam_manuscript/main/R/crisp.html) for importing data directly from common quantification software). We keep all transcripts
+that have more than 20 reads in at least 3/5 of the samples. 
 
 ```{r fitting-the-model, eval = F}
 cpo <- prepare_cpam(
@@ -174,8 +173,8 @@ We can look at a summary of the fitted cpam object
 ```{r print-cpo, results='hold'}
 cpo
 ```
-If you run the code on your own computer, you can launch the Shiny app
-on your own computer to visualise the results interactively using `visualise(cpo)`.
+If you run the code on your own computer, you can launch the Shiny app to 
+visualise the results interactively using `visualise(cpo)`.
 
 
 ## Results
@@ -245,8 +244,7 @@ g <- "ENSG00000141378"
 
 # set logged
 logged <- T
-fun <- identity
-if(logged) fun <- function(x) log(x + 0.5)
+if(logged) fun <- function(x) log(x + 0.5) else fun <- identity
 scls <- if_else(logged, "free_x", "free")
 
 # get data
@@ -265,7 +263,6 @@ plot_cpam(cpo, gene_id = g, return_fits_only = T) %>%
   ggplot(aes(time, counts)) +
   scale_x_continuous(breaks = round(sort(cpo$times), 1),
                      labels = c("0.7", "", "2.0", "3.0", "4.5", "5.5")) +
-                     #labels = c("1C","1C","4C","8C","M","B")) +
                      geom_line(aes(col = target_id)) +
                        geom_ribbon(aes(ymin = q_lo, ymax = q_hi, fill = target_id), alpha = 0.15) +
                        facet_wrap( ~ target_id, scales = scls) +
@@ -319,21 +316,18 @@ plot_cluster(cpo, res, changepoints = 2.0, shapes = "micv")
 
 ```
 
-There are more than 4000 targets in this subset, and such a large number can obscure subsets of
-targets with different expression profiles, for example with differing rates of increase.
+While the default clustering by changepoint and shape identifies meaningful patterns, this cluster contains over 4000 targets. Such a large number of targets can make it difficult to visualise differences in expression dynamics. For these cases, it is useful to be able to define custom clusters based on additional criteria. 
 
-When the default clustering categories yield a large numbers of targets, it is
-useful to be able define custom clusters. Here we define clusters based on the rate of the change in expression between the 3C and 4.5C stages.
+In this example, we subset the cluster based on the speed of response by calculating the ratio of log-fold changes between the 8-cell (3.0 days) and morula (4.5 days) stages. This ratio captures how quickly genes reach their maximum expression after activation. To manage the scale of the plot, we first filter out a small number of extreme values (log-fold changes above 10), then assign the remaining targets into four sub-clusters using specific thresholds (0.6, 0.75, and 0.87). This flexible clustering approach reveals distinct expression profiles within a cluster that share the same changepoint and shape.
 
-To contain the scale of the plot, we filter the results table to remove a handful of
-large log-fold changes above 10. We define the rate to be ratio of the log-fold changes between the 3C and 4.5C stages and choose three thresholds to define the clusters.
+
 ```{r res-cluster}
 
 res_cluster <-
   res %>% 
   filter(lfc.5.5<10) %>% # remove extreme values
-  filter(cp %in% 2, shape %in% "micv") %>% # select the 4C stage and the micv shape
-  mutate(rate = lfc.3/lfc.4.5) %>% # calculate the speed
+  filter(cp %in% 2, shape %in% "micv") %>% # select the 4C stage and the 'micv' shape
+  mutate(rate = lfc.3/lfc.4.5) %>% # calculate the rate/speed
   mutate(cluster = cut(rate,breaks = c(0, 0.6, 0.75, 0.87,10), labels = paste0("cluster ",1:4)))
 
 res_cluster
@@ -383,9 +377,11 @@ res_cluster %>% select(target_id,rate,cluster)
 
 To look at the targets in cluster 1.
 ```{r }
-res_cluster %>% select(target_id,rate) %>% 
-filter(rate == "cluster 1") %>% pull(target_id) %>% head
-
+res_cluster %>% 
+  select(target_id,cluster,rate) %>%
+  filter(cluster == "cluster 1") %>% 
+  pull(target_id) %>% 
+  head() # print first 5 targets
 ```
 
 ## References
