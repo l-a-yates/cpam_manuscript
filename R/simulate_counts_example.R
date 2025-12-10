@@ -95,5 +95,3 @@ cpo$num_cores <- 1 # for platform independence
 saveRDS(cpo,"data/cpo_example.rds")
 #visualize(cpo)
 
-
-

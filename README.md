@@ -21,5 +21,9 @@ Code to reproduce the simulations in the manuscript can be found in the `R` dire
  - The files `sim_calibration_co.R` and `sim_calibration_cc.R` contain the code to 
  reproduce the $p$-value calibration results for the case-only and case-control 
  models, respectively.
- - The files `sim_trends_co.R` and `sim_trends_cc.R` contain the code to reproduce
- 
+ - The files `sim_trends_co.R` and `sim_trends_cc.R` contain the code to reproduce 
+ the FDR-TPR results for the case-only and case-control models, respectively.
+ - The files `plot_calibration.R` and `plot_trends.R` contain the code to generate the figures
+ in the manuscript from the simulation results.
+ - The file `sim_changepoints.R` contains the code to reproduce the changepoint estimation 
+ results and recreate the figures.

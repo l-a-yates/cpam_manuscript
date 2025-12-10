@@ -1,7 +1,9 @@
+#----------------------------------------------------------------------------
 # Simulates data with null and DE trends in the case-control setting
 # Fits various models to the data
 # Computes p-values and their adjustments
-# Saves the results
+# Saves the results as COBRAData objects
+#----------------------------------------------------------------------------
 
 library(tidyr)
 library(edgeR)
@@ -21,6 +23,11 @@ source("R/models_cc.R")
 map <- purrr::map
 select <- dplyr::select
 num_cores <- 4
+
+for(rep in 1:20){
+
+  print(paste0("Running rep ",rep))
+
 
 #---- simulation parameters
 nSim <- 3e4
@@ -91,7 +98,7 @@ sample(nSim*(1-prop_null),1) %>%
 
 # set simulation truth
 de.truth <- sim_mu0 %>% transmute(target_id, de = as.numeric(bs_treatment!="null"))
-name_suffix <- paste0("nSim_",nSim,"_nTP_",nTP,"_nRep_",nRep,"_nMean_",nMean,"_seed_",seed)
+name_suffix <- paste0("nSim_",nSim,"_nTP_",nTP,"_nRep_",nRep,"_nMean_",nMean,"_seed_",seed, "_rep_",rep)
 
 # save simulation data
 write.csv(count_matrix, paste0("output/trend_cc_matrix_",name_suffix,".csv"))
@@ -101,7 +108,6 @@ ed <- tibble(sample = paste0("X",1:(2*nTP*nRep)),
              time = rep(rep(1:nTP-1, each = nRep),2),
              condition = c(rep("control",nTP*nRep),rep("treatment",nTP*nRep)))
 ed
-
 
 #---- fit models
 pv_cc <- list()
@@ -129,8 +135,8 @@ padj[["deseq_pairwise_2"]] <- padj_pairwise_2$pairwise_2
 truth <- de.truth %>% {data.frame(select(.,-target_id),row.names = .$target_id)}
 cdata <- iCOBRA::COBRAData(pval = pval, padj = padj,truth = truth)
 attributes(cdata)$sim_pars <- rstan::nlist(nSim,nRep,nTP,nMean,seed,bss,prop_null,lfc)
-cdata_name <- paste0("lfc.",lfc,"_nRep.",nRep,"_nTP",nTP,"_seed.",seed,"_nSim",nSim,"_propNull.",prop_null)
+cdata_name <- paste0("lfc.",lfc,"_nRep.",nRep,"_nTP",nTP,"_seed.",seed,"_nSim",nSim,"_propNull.",prop_null,"_rep_",rep)
 
 saveRDS(cdata,paste0("output/trends_cc_",cdata_name,".rds"))
-
+}
 

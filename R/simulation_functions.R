@@ -1,4 +1,11 @@
-# reference original paper here and cite recount too
+#----------------------------------------------------------------------------
+# Functions to simulate mean-dispersion pairs from empirical data
+# using Cheung et al data set sourced from recount2:
+# <{http://dx.doi.org/10.1186/1471-2105-12-449}>
+# Simulation strategy follows that of Spies et al 2019:
+# <10.1093/bib/bbx115> and recount2 <10.1038/nbt.3838>
+#----------------------------------------------------------------------------
+
 simulate_pairs_from_empirical <- function(nSim){
   message("Loading Cheung data set")
   cheung <-
@@ -108,21 +115,33 @@ plot_pval_calibration <- function(sims,npvals = 2e3, npsims = 2e3, ci = 0.95,
     group_by(p.true,p.true.t) %>%
     summarise(lower = quantile(r,0.5-ci/2), upper = quantile(r,0.5+ci/2), se = sd(r))
 
-  unif_sim %>%
-    bind_cols(sims %>% map_dfc(~ quantile(.x$ecdf, probs = unif_sim$p.true) %>% tfun)) %>%
-    pivot_longer(all_of(names(sims)), names_to = "method", values_to = "q") %>%
+  sims %>%
+  map_dfr(~ .x %>%
+            #{.[!names(.) %in%  c("trendcatcher")]} %>% #"nbamseq"
+            map(~ list(pvalues = .x$pvalue,ecdf = ecdf(.x$pvalue))) %>%
+            map_dfc(~ quantile(.x$ecdf, probs = ((1:npvals)/npvals)) %>% tfun) %>%
+            mutate(p.true.t = tfun(((1:npvals)/npvals))) %>%
+            pivot_longer(-p.true.t, names_to = "method", values_to = "q"),
+          .id = "sim") %>%
+    group_by(method, p.true.t) %>%
+    summarise(q_se = sd(q), q = mean(q)) %>%
     ggplot(aes(x = p.true.t)) +
-    geom_ribbon(aes(ymin = lower, ymax = upper), fill = ribbon_col, alpha = 0.3) +
-    #geom_ribbon(aes(ymin = p.true.t - se, ymax = p.true.t + se), fill = "red", alpha = 0.3) +
-    geom_point(aes(y = q, col = method), size = 1.5, data = ~ .x %>% filter(p.true.t >= 2.4)) +
-    geom_line(aes(y = q, col = method), linewidth = 0.5, data = ~ .x %>% filter(p.true.t <= 2.4)) +
-    geom_line(aes(y = p.true.t), linetype = "dashed", col = line_col) +
+    geom_ribbon(aes(ymin = lower, ymax = upper), fill = blues9[6], alpha = 0.3,
+                data = unif_sim) +
+    geom_ribbon(aes(ymin = q - 1*q_se, ymax = q + 1*q_se, fill = method), alpha = 0.2,
+                data = ~ .x %>% filter(p.true.t <= 2.4), show.legend = F) +
+    geom_line(aes(y = q, col = method), linewidth = 0.5, data = ~ .x %>% filter(p.true.t <= 2.4),
+              show.legend = F) +
+    geom_linerange(aes(ymin = q - 1*q_se, ymax = q + 1*q_se, col = method),
+                   data = ~ .x %>% filter(p.true.t >= 2.4), alpha = 0.5,
+                   show.legend = F) +
+    geom_line(aes(y = p.true.t), linetype = "dashed", col = blues9[8]) +
+    geom_point(aes(y = q, col = method), size = 1, data = ~ .x %>% filter(p.true.t >= 2.4)) +
     labs(y = expression("observed -log"[10]*"(p-value)"),
          x = expression("expected -log"[10]*"(p-value)"),
          title = NULL,
          subtitle = NULL,
-         col = "model") +
-    coord_equal()
+         col = "model")
 }
 
 

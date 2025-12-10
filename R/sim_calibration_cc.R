@@ -22,6 +22,10 @@ map <- purrr::map
 select <- dplyr::select
 num_cores <- 4
 
+for(rep in 1:20){
+
+print(paste0("Running rep ",rep))
+
 #---- simulation parameters
 nSim <- 3e4
 nRep <- 3
@@ -33,7 +37,7 @@ bss = c("micv","cv","mdcx","cx","tp")
 prop_null <- 1
 nNull <- round(prop_null*nSim)
 nDE <- nSim - nNull
-lfc <- 2
+lfc <- 1
 
 # randomly sample mean-dispersion pairs and shapes
 sim_mu0 <-
@@ -46,6 +50,7 @@ sim_mu0 <-
          bs_treatment = c(sample(bss,nDE, replace = T),rep("null",nNull))) # sample shapes for case (treatment)
 
 # simulate mean counts across the time series
+# N.B. For null simulations, the mean counts are the same for control and treatment
 sim_mu <-
   sim_mu0 %>%
   mutate(mean_control = pbmcmapply(simulate_mean, sim_mu0$nTP,sim_mu0$bs_control, mc.cores = 6, SIMPLIFY = F),
@@ -87,29 +92,32 @@ sample(nSim,1) %>%
       labs(subtitle = .)}
 
 # save simulation data
-name_suffix <- paste0("nSim_",nSim,"_nTP_",nTP,"_nRep_",nRep,"_nMean_",nMean,"_seed_",seed)
+name_suffix <- paste0("nSim_",nSim,"_nTP_",nTP,"_nRep_",nRep,"_nMean_",nMean,"_seed_",seed,"_rep_",rep)
 write.csv(count_matrix, paste0("output/null_cc_matrix_",name_suffix,".csv"))
 
 # experimental design
 ed <- tibble(sample = paste0("X",1:(2*nTP*nRep)),
              time = rep(rep(1:nTP-1, each = nRep),2),
              condition = c(rep("control",nTP*nRep),rep("treatment",nTP*nRep)))
-ed
-
 
 #---- fit models
 pv_cc <- list()
-pv_cc[["factor"]] <- pv_cc_factor(count_matrix,ed)
-pv_cc[["cpam"]] <- pv_cc_cpam(count_matrix,ed,num_cores = num_cores)
-pv_cc[["impulsede2"]] <- pv_cc_impulsede2(count_matrix,ed)
-pv_cc[["masigpro"]] <- pv_cc_masigpro(count_matrix,ed,nRep = nRep)
-pv_cc[["tradeseq"]] <- pv_cc_tradeseq(count_matrix,ed)
+pv_cc_timings <- list()
 
-pval_pairwise <- pv_cc_pairwise(count_matrix,ed)
-pv_cc[["pairwise-min"]] <- pval_pairwise %>% group_by(target_id) %>% summarise(pvalue = min(pvalue))
-pv_cc[["pairwise-all"]] <- pval_pairwise %>% select(-tp)
+pv_cc_timings[["factor"]] <- system.time({pv_cc[["factor"]] <- pv_cc_factor(count_matrix,ed)})
+pv_cc_timings[["cpam"]] <- system.time({pv_cc[["cpam"]] <- pv_cc_cpam(count_matrix,ed,num_cores = num_cores)})
+pv_cc_timings[["impulsede2"]] <- system.time({pv_cc[["impulsede2"]] <- pv_cc_impulsede2(count_matrix,ed)})
+pv_cc_timings[["masigpro"]] <- system.time({pv_cc[["masigpro"]] <- pv_cc_masigpro(count_matrix,ed,nRep = nRep)})
+pv_cc_timings[["tradeseq"]] <- system.time({pv_cc[["tradeseq"]] <- pv_cc_tradeseq(count_matrix,ed)})
+pv_cc_timings[["pairwise"]] <- system.time({
+  pval_pairwise <- pv_cc_pairwise(count_matrix,ed)
+  pv_cc[["pairwise-min"]] <- pval_pairwise %>% group_by(target_id) %>% summarise(pvalue = min(pvalue))
+  pv_cc[["pairwise-all"]] <- pval_pairwise %>% select(-tp)
+})
 
-attributes(pv_cc)$sim_pars <- rstan::nlist(nSim,nRep,nTP,nMean,seed,bss,prop_null,lfc)
+timing <- pv_cc_timings %>% map_dbl(~.x["elapsed"])
 
+attributes(pv_cc)$sim_pars <- rstan::nlist(nSim,nRep,nTP,nMean,seed,bss,prop_null,lfc,timing)
 saveRDS(pv_cc,paste0("output/pv_calib_cc_",name_suffix,".rds"))
 
+}

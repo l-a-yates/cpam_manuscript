@@ -1,4 +1,6 @@
+#----------------------------------------------------------------------------
 # functions compute p-values for various case-only models
+#----------------------------------------------------------------------------
 
 pv_co_factor <- function(count_matrix,nTP,nRep){
   message("fitting factor model with DESeq2")
@@ -82,7 +84,7 @@ pv_co_impulsede2 <- function(count_matrix,nTP,nRep,num_cores){
 }
 
 
-pv_co_masigpro <- function(count_matrix,nTP,nRep,nSim,nMean,seed){
+pv_co_masigpro <- function(count_matrix,nTP,nRep){
   message("fitting masigpro")
   ed.masigpro = data.frame(
     Time = (rep(1:nTP, each = nRep)),
@@ -104,6 +106,7 @@ pv_co_masigpro <- function(count_matrix,nTP,nRep,nSim,nMean,seed){
 
 }
 
+# devtools::install_github("statOmics/tradeSeq")
 pv_co_tradeseq <- function(count_matrix,nTP,nRep){
   message("fitting tradeseq")
 
@@ -145,8 +148,8 @@ pv_co_trendcatcher <- function(count_matrix,nTP,nRep,num_cores){
 
 }
 
-
-pv_co_tdeseq <- function(count_matrix,nTP,nRep,nSim,nMean,seed,num_cores){
+# install_github("fanyue322/TDEseq")
+pv_co_tdeseq <- function(count_matrix,nTP,nRep,num_cores){
 
   message("fitting tdeseq")
   # https://github.com/fanyue322/TDEseq

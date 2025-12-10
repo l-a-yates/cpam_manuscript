@@ -1,4 +1,6 @@
+#----------------------------------------------------------------------------
 # functions compute p-values for various case-control models
+#----------------------------------------------------------------------------
 
 pv_cc_factor <- function(count_matrix,ed){
   message("fitting time-as-a-factor model")

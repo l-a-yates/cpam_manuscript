@@ -1,6 +1,8 @@
+#----------------------------------------------------------------------------
 # Simulate data with known changepoints
 # Estimate changepoints using cpam and pairwise methods
 # Generate plots to compare the performance of the two methods
+#----------------------------------------------------------------------------
 
 library(tidyr)
 library(edgeR)

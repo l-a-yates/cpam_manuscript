@@ -1,7 +1,9 @@
+#----------------------------------------------------------------------------
 # Simulates data with null and DE trends in the case-only setting
 # Fits various models to the data
 # Computes p-values and their adjustments
-# Saves the results
+# Saves the results as COBRAData objects
+#----------------------------------------------------------------------------
 
 library(tidyr)
 library(edgeR)
@@ -22,6 +24,9 @@ map <- purrr::map
 select <- dplyr::select
 num_cores <- 4
 
+for(rep in 1:20){
+
+print(paste0("Running rep ",rep))
 
 #---- simulation parameters
 nSim <- 3e4
@@ -35,7 +40,6 @@ prop_null <- 0.9
 nNull <- round(prop_null*nSim)
 nDE <- nSim - nNull
 lfc <- 2
-
 
 sim_mu <-
   simulate_pairs_from_empirical(nSim) %>%
@@ -58,7 +62,8 @@ count_matrix <- sim_counts$counts %>% bind_rows %>% as.matrix %>%
 
 # set simulation truth
 de.truth <- sim_counts %>% transmute(target_id, de = as.numeric(bs!="null"))
-name_suffix <- paste0("nSim_",nSim,"_nTP_",nTP,"_nRep_",nRep,"_nMean_",nMean,"_seed_",seed)
+name_suffix <- paste0("nSim_",nSim,"_nTP_",nTP,"_nRep_",nRep,"_nMean_",nMean,"_seed_",seed, "_rep_",rep)
+print(name_suffix)
 
 # save simulation data
 write.csv(count_matrix, paste0("output/trend_co_matrix_",name_suffix,".csv"))
@@ -67,13 +72,16 @@ write.csv(count_matrix, paste0("output/trend_co_matrix_",name_suffix,".csv"))
 #---- fit models
 
 pv <- list()
-pv[["factor"]] <- pv_co_factor(count_matrix,nTP,nRep,nSim,nMean,seed)
+pv[["factor"]] <- pv_co_factor(count_matrix,nTP,nRep)
 pv[["cpam"]] <- pv_co_cpam(count_matrix,nTP,nRep,num_cores = num_cores)
 pv[["impulsede2"]] <- pv_co_impulsede2(count_matrix,nTP,nRep, num_cores = num_cores)
 pv[["masigpro"]] <- pv_co_masigpro(count_matrix,nTP,nRep)
 pv[["tradeseq"]] <- pv_co_tradeseq(count_matrix,nTP,nRep)
 pv[["tdeseq"]] <- pv_co_tdeseq(count_matrix,nTP,nRep, num_cores = num_cores)
-pv[["nbamseq"]] <- pv_co_nbamseq(count_matrix,nTP,nRep,num_cores = num_cores)
+if(nTP == 12){
+  pv[["nbamseq"]] <- pv_co_nbamseq(count_matrix,nTP,nRep,num_cores = num_cores)
+  pv[["trendcatcher"]] <- pv_co_trendcatcher(count_matrix,nTP,nRep,num_cores)
+}
 
 pval_pairwise <- pv_co_pairwise(count_matrix,nTP,nRep)
 pv[["pairwise.3"]] <- pv[["pairwise.2"]] <- pv[["pairwise.1"]] <-
@@ -98,7 +106,9 @@ pval <-
   {data.frame(select(.,-target_id),row.names = .$target_id)}
 
 # deal with negative p-values in nbamseq
-pval$nbamseq[pval$nbamseq<0 & !is.na(pval$nbamseq)] <- 3e-20
+if(nTP == 12){
+  pval$nbamseq[pval$nbamseq<0 & !is.na(pval$nbamseq)] <- 3e-20
+}
 
 padj = pval %>% mutate(across(everything(), ~ p.adjust(.x, method = "BH")))
 padj[["pairwise.2"]] <- padj_pairwise_2$pvalue
@@ -108,8 +118,8 @@ truth <- de.truth %>% {data.frame(select(.,-target_id),row.names = .$target_id)}
 
 cdata <- iCOBRA::COBRAData(pval = pval, padj = padj,truth = truth)
 attributes(cdata)$sim_pars <- rstan::nlist(nSim,nRep,nTP,nMean,seed,bss,prop_null,lfc)
-cdata_name <- paste0("lfc.",lfc,"_nRep.",nRep,"_nTP",nTP,"_seed.",seed,"_nSim",nSim,"_propNull.",prop_null)
+cdata_name <- paste0("lfc.",lfc,"_nRep.",nRep,"_nTP",nTP,"_seed.",seed,"_nSim",nSim,"_propNull.",prop_null,"_rep_",rep)
 saveRDS(cdata,paste0("output/trends_co_",cdata_name,".rds"))
-
+}
 
 
